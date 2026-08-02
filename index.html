@@ -1,0 +1,976 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>나랑 놀래?</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Gowun+Dodum&family=Jua&display=swap');
+
+    :root {
+      --ink:#1d1c1a;
+      --paper:#fffdf8;
+      --line:#dad4c8;
+      --accent:#5367e8;
+      --danger:#df3d3d;
+    }
+    * { box-sizing:border-box; }
+    html,body { margin:0; min-height:100%; }
+    body {
+      background:var(--paper);
+      color:var(--ink);
+      font-family:"Gowun Dodum",sans-serif;
+      overflow-x:hidden;
+    }
+    button,input { font:inherit; }
+    button { cursor:pointer; }
+
+    .screen {
+      display:none;
+      min-height:100vh;
+      padding:42px 22px;
+      align-items:center;
+      justify-content:center;
+    }
+    .screen.active { display:flex; }
+    .card {
+      width:min(900px,94vw);
+      padding:38px;
+      border:1px solid var(--line);
+      border-radius:24px;
+      background:rgba(255,255,255,.94);
+      box-shadow:0 18px 55px rgba(40,35,25,.11);
+      text-align:center;
+    }
+
+    /* Invitation */
+    #inviteScreen { background:#090909; color:white; overflow:hidden; }
+    #inviteScreen .card { border:0; box-shadow:none; background:transparent; }
+    #inviteText {
+      font-family:"Jua",sans-serif;
+      font-size:clamp(34px,5vw,64px);
+      line-height:1.35;
+      margin:0 0 48px;
+      min-height:1.35em;
+    }
+    #playTime {
+      margin:-28px 0 28px;
+      font-size:18px;
+      color:rgba(255,255,255,.72);
+      letter-spacing:.02em;
+      opacity:0;
+      transition:.5s;
+    }
+    #playTime.show { opacity:1; }
+    .invite-buttons { position:relative; width:390px; height:86px; margin:auto; opacity:0; transition:.5s; }
+    .invite-buttons.show { opacity:1; }
+    .invite-btn {
+      position:absolute;
+      width:150px; height:58px; top:14px;
+      border:1px solid rgba(255,255,255,.75);
+      border-radius:14px;
+      background:rgba(255,255,255,.07);
+      color:white;
+      font-size:20px; font-weight:700;
+    }
+    #yesBtn { left:18px; }
+    #yesBtn:hover { transform:scale(1.06); background:rgba(255,255,255,.17); }
+    #noBtn {
+      position:fixed; left:0; top:0; z-index:30;
+      pointer-events:none; opacity:0;
+      will-change:left,top;
+    }
+
+    /* Shared question styles */
+    .title {
+      font-family:"Gowun Dodum",sans-serif;
+      font-size:clamp(25px,3.2vw,38px);
+      line-height:1.45;
+      margin:0 0 28px;
+      color:#222;
+      font-weight:400;
+    }
+    .body-text { font-size:clamp(18px,2.1vw,24px); line-height:1.8; white-space:pre-line; }
+    .puzzle-image {
+      display:block;
+      width:auto;
+      height:auto;
+      max-width:100%;
+      max-height:none;
+      object-fit:contain;
+      margin:22px auto 28px;
+      border-radius:16px;
+      background:white;
+      box-shadow:0 13px 34px rgba(0,0,0,.11);
+    }
+    .image-frame {
+      width:100%;
+      overflow:visible;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+    }
+    .answer-wrap { margin-top:30px; }
+    .answer-input {
+      width:min(430px,88%);
+      height:58px;
+      border:2px solid #292929;
+      border-radius:12px;
+      padding:0 18px;
+      text-align:center;
+      font-size:21px;
+      outline:none;
+      background:white;
+    }
+    .answer-input:focus { box-shadow:0 0 0 5px rgba(83,103,232,.14); border-color:var(--accent); }
+    .primary {
+      display:block;
+      min-width:150px;
+      height:50px;
+      margin:15px auto 0;
+      padding:0 22px;
+      border:0;
+      border-radius:11px;
+      background:#161616;
+      color:white;
+      font-weight:700;
+    }
+    .primary:hover { background:#363636; }
+    .feedback { min-height:26px; margin-top:13px; color:#b2152b; font-weight:700; }
+    .back12 {
+      margin-top:30px;
+      border:1px solid #222;
+      border-radius:10px;
+      padding:11px 18px;
+      background:white;
+    }
+    .red { color:var(--danger); font-weight:800; }
+    .big-code {
+      margin:30px auto;
+      font-family:monospace;
+      font-size:clamp(28px,5vw,54px);
+      font-weight:800;
+      letter-spacing:.18em;
+      white-space:nowrap;
+    }
+
+    /* Intro */
+    #introScreen { background:#fff; }
+    #introScreen .body-text { font-weight:600; }
+
+    /* Q2 */
+    .ratio-table {
+      width:min(640px,100%);
+      margin:25px auto;
+      border-collapse:separate;
+      border-spacing:0 12px;
+      font-size:clamp(18px,2.3vw,25px);
+    }
+    .ratio-table td { padding:13px 18px; background:#f3f0e8; }
+    .ratio-table td:first-child { border-radius:12px 0 0 12px; text-align:left; }
+    .ratio-table td:last-child { border-radius:0 12px 12px 0; text-align:right; font-weight:800; }
+
+    /* Q4 */
+    .sequence {
+      width:min(620px,100%);
+      margin:25px auto;
+      text-align:left;
+      font-family:monospace;
+      font-size:clamp(22px,3vw,34px);
+      line-height:1.9;
+    }
+    .hint-box { margin:24px auto; padding:18px; width:min(620px,100%); background:#f1eee6; border-radius:15px; text-align:left; }
+
+    /* Q5 */
+    .rainbow {
+      width:min(600px,90%);
+      height:260px;
+      margin:10px auto 24px;
+      overflow:hidden;
+      position:relative;
+    }
+    .arc {
+      position:absolute; left:50%; transform:translateX(-50%);
+      border-style:solid; border-bottom:0; border-radius:420px 420px 0 0;
+    }
+    .rainbow-row {
+      display:grid;
+      grid-template-columns:repeat(7,1fr);
+      gap:8px;
+      align-items:end;
+      margin:25px auto 6px;
+      width:min(820px,100%);
+      font-family:monospace;
+      font-weight:700;
+      font-size:clamp(13px,1.5vw,18px);
+    }
+    .rainbow-nums {
+      display:grid;
+      grid-template-columns:repeat(7,1fr);
+      gap:8px;
+      width:min(820px,100%);
+      margin:auto;
+      font-size:25px;
+      font-weight:800;
+    }
+
+    /* Q8 poem */
+    .poem {
+      margin:24px auto 32px;
+      width:min(600px,100%);
+      padding:32px 25px;
+      font-family:"Gaegu",cursive;
+      font-size:clamp(23px,3vw,32px);
+      line-height:1.65;
+      white-space:pre-line;
+      color:#3f3d39;
+      background:#fffefa;
+      border-left:4px solid #d7cfbf;
+      text-align:left;
+    }
+
+    /* Q11 dialog */
+    .dialog { width:min(660px,100%); margin:24px auto; text-align:left; }
+    .speaker { font-family:"Jua",sans-serif; font-size:22px; margin-top:23px; }
+    .bubble { background:#f2efe8; border-radius:17px; padding:20px 23px; line-height:1.9; white-space:pre-line; }
+
+    /* Q12 */
+    .review-grid {
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:13px;
+      width:min(720px,100%);
+      margin:30px auto;
+    }
+    .review-grid button {
+      min-height:58px;
+      border:1px solid #bbb4a7;
+      border-radius:13px;
+      background:#f8f5ee;
+      font-weight:800;
+    }
+    .review-grid button:hover { transform:translateY(-2px); background:#eee9df; }
+    .final-numbers {
+      margin:35px auto 20px;
+      padding:22px;
+      border:2px dashed #777;
+      border-radius:16px;
+      font-family:monospace;
+      font-size:clamp(20px,3vw,31px);
+      font-weight:800;
+      letter-spacing:.05em;
+    }
+    .home-btn { background:#5263dd!important; }
+
+    #endingScreen { background:#101010; color:white; }
+    #endingScreen .card { background:#181818; border-color:#333; }
+    #endingScreen .title { color:white; }
+    .ending-message {
+      font-size:clamp(19px,2.2vw,26px);
+      line-height:1.9;
+      margin:0;
+      white-space:normal;
+    }
+    .ending-phrase {
+      display:block;
+      margin:26px 0;
+      font-family:"Gaegu",cursive;
+      font-size:clamp(38px,5vw,64px);
+      line-height:1.2;
+      color:#ffd96a;
+      transform:rotate(-2deg);
+    }
+    .ending-last {
+      margin-top:22px;
+      font-weight:700;
+    }
+
+
+
+    .ending-home-wrap {
+      margin:42px auto 72px;
+      text-align:center;
+    }
+    .ending-home-button {
+      min-width:190px;
+      min-height:52px;
+      padding:12px 24px;
+      border:1px solid rgba(255,255,255,.7);
+      border-radius:14px;
+      background:rgba(255,255,255,.12);
+      color:#fff;
+      font-size:18px;
+      font-weight:800;
+      backdrop-filter:blur(4px);
+    }
+    .ending-home-button:hover {
+      background:rgba(255,255,255,.22);
+    }
+
+    .secret-area {
+      position:relative;
+      min-height:150px;
+      margin-top:58px;
+    }
+    .secret-link {
+      position:absolute;
+      right:12px;
+      bottom:8px;
+      font-size:20px;
+      color:transparent;
+      text-decoration:none;
+      user-select:text;
+      cursor:pointer;
+      transition:.2s;
+    }
+    .secret-link::selection {
+      color:#111;
+      background:#ffe66a;
+    }
+    .secret-link::-moz-selection {
+      color:#111;
+      background:#ffe66a;
+    }
+    .secret-link:hover {
+      color:rgba(255,255,255,.15);
+    }
+    #letterScreen {
+      background:#d8d1c3;
+    }
+    .letter-paper {
+      width:min(760px,92vw);
+      min-height:560px;
+      padding:64px 58px;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          #fffaf0 0,
+          #fffaf0 38px,
+          #c9d9ee 39px,
+          #fffaf0 40px
+        );
+      border:1px solid #c7bca8;
+      box-shadow:0 24px 60px rgba(45,35,25,.23);
+      transform:rotate(-1deg);
+      text-align:left;
+    }
+    .letter-text {
+      font-family:"Gaegu",cursive;
+      font-size:clamp(28px,4vw,42px);
+      line-height:1.8;
+      white-space:pre-line;
+      color:#2b2926;
+      letter-spacing:.02em;
+    }
+
+
+    .cafe-card {
+      width:min(760px,100%);
+      margin:auto;
+      padding:34px;
+      border:1px solid #ded8cc;
+      border-radius:22px;
+      background:#fff;
+      box-shadow:0 16px 42px rgba(50,42,30,.10);
+      text-align:left;
+    }
+    .cafe-name {
+      margin:0 0 28px;
+      text-align:center;
+      font-family:"Jua",sans-serif;
+      font-size:clamp(32px,5vw,52px);
+      font-weight:400;
+      letter-spacing:.02em;
+    }
+    .address-list {
+      display:grid;
+      gap:14px;
+      margin:25px 0 34px;
+      font-size:clamp(17px,2vw,22px);
+      line-height:1.7;
+    }
+    .address-row {
+      padding:16px 18px;
+      border-radius:14px;
+      background:#f6f3ed;
+    }
+    .address-label {
+      display:inline-block;
+      min-width:74px;
+      margin-right:8px;
+      font-weight:800;
+      color:#5a5145;
+    }
+    .review-button {
+      display:block;
+      width:min(360px,90%);
+      min-height:58px;
+      margin:10px auto 0;
+      border:2px solid #222;
+      border-radius:14px;
+      background:#fff;
+      color:#111;
+      font-size:21px;
+      font-weight:800;
+    }
+    .review-button:hover {
+      background:#171717;
+      color:#fff;
+    }
+    .reviews-wrap {
+      width:min(820px,100%);
+      margin:auto;
+      text-align:left;
+    }
+    .reviews-title {
+      margin:0 0 28px;
+      text-align:center;
+      font-family:"Jua",sans-serif;
+      font-size:clamp(30px,4.5vw,48px);
+      font-weight:400;
+    }
+    .review-item {
+      padding:20px 22px;
+      margin:0 0 15px;
+      border:1px solid #e0dbd1;
+      border-radius:16px;
+      background:#fff;
+      box-shadow:0 7px 20px rgba(40,34,25,.06);
+    }
+    .review-user {
+      margin-bottom:8px;
+      font-weight:900;
+      font-size:18px;
+    }
+    .review-text {
+      font-size:17px;
+      line-height:1.75;
+    }
+    .review-reply {
+      margin:11px 0 0 28px;
+      padding:13px 16px;
+      border-left:3px solid #c8c0b3;
+      border-radius:0 10px 10px 0;
+      background:#f6f3ed;
+    }
+    .review-reply .review-user { font-size:16px; }
+    .review-reply .review-text { font-size:16px; }
+
+    @media (max-width:680px) {
+      .card { padding:25px 17px; }
+      .review-grid { grid-template-columns:repeat(2,1fr); }
+      .rainbow-row,.rainbow-nums { font-size:12px; }
+      .big-code { white-space:normal; }
+    }
+  </style>
+</head>
+<body>
+
+  <section id="inviteScreen" class="screen active">
+    <div class="card">
+      <h1 id="inviteText"></h1>
+      <p id="playTime">예상 놀이시간: 30분~1시간</p>
+      <div id="inviteButtons" class="invite-buttons">
+        <button id="yesBtn" class="invite-btn">Yes</button>
+      </div>
+    </div>
+    <button id="noBtn" class="invite-btn">No</button>
+  </section>
+
+  <section id="introScreen" class="screen">
+    <div class="card">
+      <div class="body-text">당신은 백수의 놀이에 초대되었습니다.
+문제를 풀면서 다음으로 넘어가세요.
+멘사 테스트에 응시할 정도면, 쉽게 풀 수 있을 거에요.
+무엇인가 알아낸 것이 있다면 전부 <span class="red">여기</span>에서 입력합니다!
+
+'시작'을 입력해 시작하세요.</div>
+      <div class="answer-wrap">
+        <input id="introInput" class="answer-input" autocomplete="off">
+        <button id="introSubmit" class="primary">입력</button>
+        <div id="introFeedback" class="feedback"></div>
+      </div>
+    </div>
+  </section>
+
+  <main id="questionScreen" class="screen">
+    <div id="questionCard" class="card"></div>
+  </main>
+
+  <section id="endingScreen" class="screen">
+    <div id="endingCard" class="card">
+      <div id="endingText" class="ending-message">
+수고했어요!
+당신의 소중한 친구이자
+몇 시간 동안이나 이짓거리를 한 그 사람에게
+다른 어떤 말도 하지 않고
+
+<span class="ending-phrase">수고했네...</span>
+
+라고 보내주세요!
+귀찮아도 어울려 주세요!
+그럼 무엇인가 숨겨진 위치를 알려줄 거에요 ^0^
+      </div>
+      <div class="ending-home-wrap">
+        <button class="ending-home-button" onclick="goIntro()">첫 페이지로 가기</button>
+      </div>
+      <div class="secret-area">
+        <a class="secret-link" href="#" onclick="openLetter(); return false;">유빈이에게</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="letterScreen" class="screen">
+    <div class="letter-paper">
+      <div class="letter-text">설가 유빈에게.
+
+실없는 장난에 어울려줘서 고맙고
+나랑 친구 해줘서 항상 고마워
+
+(진짜 끝임)</div>
+    </div>
+  </section>
+
+  <section id="cafeScreen" class="screen">
+    <div class="cafe-card">
+      <h2 class="cafe-name">카페인 24 마포성산점</h2>
+      <div class="address-list">
+        <div class="address-row"><span class="address-label">&lt;도로명&gt;</span>월드컵북로 262 상가2동 1층 103호</div>
+        <div class="address-row"><span class="address-label">&lt;지번&gt;</span>성산동 446</div>
+      </div>
+      <button class="review-button" onclick="openCafeReviews()">리뷰 보기</button>
+    </div>
+  </section>
+
+  <section id="cafeReviewsScreen" class="screen">
+    <div class="reviews-wrap">
+      <h2 class="reviews-title">카페인 24 마포성산점 리뷰</h2>
+
+      <div class="review-item">
+        <div class="review-user">와이키키</div>
+        <div class="review-text">성산시영아파트 바로 옆에 있어서 가기 편해요! ㅎㅎ</div>
+      </div>
+
+      <div class="review-item">
+        <div class="review-user">주식시장 엑소더스</div>
+        <div class="review-text">테이블이 여러 개 있더라구요. 24시간에 무인입니다.</div>
+      </div>
+
+      <div class="review-item">
+        <div class="review-user">냠냠쩝쩝 프로도</div>
+        <div class="review-text">작은 테이블이랑 큰 테이블이 있네요~</div>
+      </div>
+
+      <div class="review-item">
+        <div class="review-user">525252</div>
+        <div class="review-text">창가 쪽 큰 테이블 아래쪽을 손으로 뒤적거리면 뭔가 붙어 있습니다.</div>
+
+        <div class="review-reply">
+          <div class="review-user">와우정말</div>
+          <div class="review-text">무슨 쪽지인듯요?</div>
+        </div>
+
+        <div class="review-reply">
+          <div class="review-user">aabbcc11</div>
+          <div class="review-text">만약 모종의 이유로 떨어졌다면 참 안타깝지만 어쩔 수 없네요...</div>
+        </div>
+
+        <div class="review-reply">
+          <div class="review-user">건강최고아자아자</div>
+          <div class="review-text">발견한 사람이 있다면 꼭 떼서 회수해야겠네요^^</div>
+
+          <div class="review-reply">
+            <div class="review-user">Coool1415</div>
+            <div class="review-text">그래도 떨어지기 쉽게 붙여 놨다는데요</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="review-item">
+        <div class="review-user">JH짱짱</div>
+        <div class="review-text">리뷰 보시는 분 화내지 말아주세요 ㅠㅠ</div>
+      </div>
+    </div>
+  </section>
+
+<script>
+const questions = [
+  null,
+  {
+    title:"1번 문제. 거제 야호!",
+    html:`<div class="image-frame"><img class="puzzle-image" src="images/q1.png" alt="1번 퍼즐" loading="eager"></div><p>정답을 알아냈다면 아래에 입력하세요.</p>`,
+    answers:["5073"]
+  },
+  {
+    title:"2번 문제. 프랑스의 샹보르성 공원은 약 5,440 헥타르입니다.",
+    html:`<table class="ratio-table">
+      <tr><td>크리스마스 (12/25)</td><td>48%</td></tr>
+      <tr><td>삼일절 (3/1)</td><td>300%</td></tr>
+      <tr><td>3월 4일 (3/4)</td><td>75%</td></tr>
+      <tr><td>어버이날 (5/8)</td><td>???%</td></tr>
+    </table>`,
+    answers:["62.5","62.5%"]
+  },
+  {
+    title:"3번 문제. 우리는~ 우리는~ 어째서~ 어른이 된 걸까~",
+    html:`<div class="image-frame"><img class="puzzle-image" src="images/q3.png" alt="3번 퍼즐" loading="eager"></div>
+      <p>이미지의 규칙을 찾아 정답을 입력하세요.</p><p><b>힌트) 여우는 영어로 퐉스</b></p>`,
+    answers:["FINE"]
+  },
+  {
+    title:"4번 문제. 영화는 현실의 재현인 동시에 현실의 창조라는데?!",
+    html:`<div class="sequence">
+      (1) A ... <span class="red">?</span> J K<br>
+      (2) A 1 2 ... J <span class="red">?</span> K<br>
+      (3) A <span class="red">?</span> D F G H J K
+    </div>
+    <p><b>* 정답은 세 글자 영어 (말이 되는 단어가 아님)</b></p>
+    <div class="hint-box"><b>힌트</b><br>
+      (1) 알파벳<br>
+      (2) 포커 게임<br>
+      (3) 마우스, 모니터, 스피커, 그리고... 아참! OOO를 빼먹었다!
+    </div>`,
+    answers:["IQS"]
+  },
+  {
+    title:"5번 문제. 궤도에서 벗어나는 것은 항상 재밌다!",
+    html:`<div class="rainbow" aria-label="무지개 그림">
+      <div class="arc" style="width:560px;height:280px;border-width:25px;border-color:#e33;top:0"></div>
+      <div class="arc" style="width:510px;height:255px;border-width:25px;border-color:#f28b28;top:25px"></div>
+      <div class="arc" style="width:460px;height:230px;border-width:25px;border-color:#f0ce36;top:50px"></div>
+      <div class="arc" style="width:410px;height:205px;border-width:25px;border-color:#43a85b;top:75px"></div>
+      <div class="arc" style="width:360px;height:180px;border-width:25px;border-color:#3e75df;top:100px"></div>
+      <div class="arc" style="width:310px;height:155px;border-width:25px;border-color:#4d4aa2;top:125px"></div>
+      <div class="arc" style="width:260px;height:130px;border-width:25px;border-color:#8d4fab;top:150px"></div>
+    </div>
+    <p class="body-text">Rainbow는 총 일곱 가지 색.</p>
+    <div class="rainbow-row"><span>Red</span><span>Orange</span><span>Yellow</span><span>Green</span><span>Blue</span><span>Indigo</span><span>Violet</span></div>
+    <div class="rainbow-nums"><span>3</span><span>6</span><span>5</span><span>2</span><span>1</span><span>1</span><span>6 ?</span></div>`,
+    answers:["DEORBIT"]
+  },
+  {
+    title:"6번 문제. 나는 고양이로소이다(야옹)",
+    html:`<div class="image-frame"><img class="puzzle-image" src="images/q6.png" alt="청기 백기 문제" loading="eager"></div>
+      <p class="body-text"><b>힌트: 운 동 회!</b></p>`,
+    answers:["청기백기"]
+  },
+  {
+    title:"7번 문제. 영원한 영혼의 영롱함은 영감의 영역",
+    html:`<div class="body-text">뉴스 속보입니다.
+
+북쪽에서는 첫 번째가 중요하고
+동쪽에서도 첫 번째가 중요하고
+서쪽에서도 첫 번째가 중요하고
+남쪽에서도 첫 번째가 중요하네요.
+그리고 이 순서도 중요하네요.
+
+* 정답은 4글자 영어입니다.</div>`,
+    answers:["NEWS"]
+  },
+  {
+    title:"8번 문제. 문제 풀다 화났나유? 아니지유?",
+    html:`<div class="poem">오늘도 눈을 뜬 채로
+하루가 흘러갔어요.
+
+하루는 왜
+하루하루 흘러갈까요?
+
+하루는,
+흘러가지 않을 수 없을까요
+
+왜 하루는!
+하루처럼
+하루하루 흘러가냐구요</div>
+    <div class="body-text">이게 제가 쓴 시에요.
+<b>마물쉼느가 보이세요?</b>
+그럼 다음 문장에서 없는 건 뭘까요?
+세 글자 한글로 적어주세요.
+
+그건 말이지, 하루가 흘러가지 않는다면 하루가 아니기 때문이란다?!</div>`,
+    answers:["마침표"]
+  },
+  {
+    title:"9번 문제. 찔레꽃 줄기에 뾰족한 가시",
+    html:`<div class="big-code">M V E M J S U ???</div>
+      <div class="body-text">E는 우리의 소중한 집
+J는 대빵큼
+S는 고리가 있어요
+M에 갈 수 있을까?
+
+???에 들어갈 말을 일곱 글자로 적어주세요.</div>`,
+    answers:["NEPTUNE","넵튠"]
+  },
+  {
+    title:"10번 문제. 아 이제 거의 끝나간다~",
+    html:`<div class="body-text"><b>Q.</b> 이 문제들을 만들었다고 추정되는 사람이 태어난 날 어딘가에 착륙한 것은???
+
+(영어 10글자)</div>`,
+    answers:["PATHFINDER"]
+  },
+  {
+    title:"11번 문제. 오니는 일본어로 도깨비, 라니는 인도어로 여왕, 마니는 산스크리트어로 보석",
+    html:`<div class="body-text">사실상 마지막 문제야! 왜냐면 열두 번째 문제는 그렇게 어렵지 않거든.
+그러니까 조금 난이도를 올려서.... 흠흠 ......</div>
+    <div class="dialog">
+      <div class="speaker">유빈:</div>
+      <div class="bubble">팔꿈치는 항상 아래에 있어야 하고
+심장은 지구와 같아
+응시하면 눈물이 나고
+밤은 것이지
+듣기 위해서는 침묵해야만 해</div>
+      <div class="speaker">재현:</div>
+      <div class="bubble">그렇다면, 메론은 <span class="red">이 과일</span>이구나!</div>
+    </div>`,
+    answers:["LEMON","레몬"]
+  },
+  {
+    title:"12번 문제. 다 끝났다!",
+    html:""
+  }
+];
+
+let currentQuestion = 0;
+let reviewMode = false;
+
+const inviteScreen = document.getElementById("inviteScreen");
+const introScreen = document.getElementById("introScreen");
+const questionScreen = document.getElementById("questionScreen");
+const endingScreen = document.getElementById("endingScreen");
+const letterScreen = document.getElementById("letterScreen");
+const cafeScreen = document.getElementById("cafeScreen");
+const cafeReviewsScreen = document.getElementById("cafeReviewsScreen");
+const questionCard = document.getElementById("questionCard");
+const screens = [inviteScreen,introScreen,questionScreen,endingScreen,letterScreen,cafeScreen,cafeReviewsScreen];
+
+function show(el){
+  screens.forEach(s=>s.classList.remove("active"));
+  el.classList.add("active");
+  window.scrollTo(0,0);
+}
+function norm(value){
+  return value.trim().replace(/\s+/g,"").toUpperCase();
+}
+function openCafeReviews(){
+  show(cafeReviewsScreen);
+}
+function openLetter(){
+  show(letterScreen);
+}
+function goIntro(){
+  show(introScreen);
+  setTimeout(()=>document.getElementById("introInput").focus(),60);
+}
+function openQuestion(n, review=false){
+  currentQuestion=n;
+  reviewMode=review;
+  show(questionScreen);
+  renderQuestion();
+  requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:"auto"}));
+}
+function renderQuestion(){
+  const q=questions[currentQuestion];
+  if(currentQuestion===12){
+    const buttons = Array.from({length:11},(_,i)=>`<button onclick="openQuestion(${i+1},true)">${i+1}번 문제</button>`).join("");
+    questionCard.innerHTML=`
+      <h2 class="title">${q.title}</h2>
+      <div class="body-text">1번 문제부터 12번 문제까지
+다시 한번씩 돌아보면서 놓친 것들을 확인해보자
+분명 문제마다 이상한 것들이 있었는데...
+
+정답은 12글자 한글 문장</div>
+      <div class="review-grid">${buttons}
+        <button class="home-btn" style="color:white" onclick="goIntro()">첫 페이지로 가기</button>
+      </div>
+      <div class="final-numbers">4 / 1 / 3 / 7 / 14 / 2 / 1 / 5 / 10 / 1 / 2 / 1</div>`;
+    return;
+  }
+
+  questionCard.innerHTML=`
+    <h2 class="title">${q.title}</h2>
+    ${q.html}
+    ${reviewMode ? `<button class="back12" onclick="openQuestion(12,false)">12번 문제로 돌아가기</button>` :
+    `<div class="answer-wrap">
+      <input id="answerInput" class="answer-input" autocomplete="off">
+      <button class="primary" id="answerSubmit">정답 입력</button>
+      <div id="answerFeedback" class="feedback"></div>
+    </div>`}
+  `;
+  requestAnimationFrame(()=>{
+    document.querySelectorAll(".puzzle-image").forEach(img=>{
+      if(img.complete){
+        img.style.display="none";
+        void img.offsetHeight;
+        img.style.display="block";
+      }
+    });
+  });
+  if(!reviewMode){
+    const input=document.getElementById("answerInput");
+    const submit=document.getElementById("answerSubmit");
+    submit.addEventListener("click",submitAnswer);
+    input.addEventListener("keydown",e=>{if(e.key==="Enter")submitAnswer();});
+    setTimeout(()=>input.focus(),60);
+  }
+}
+function submitAnswer(){
+  const q=questions[currentQuestion];
+  const input=document.getElementById("answerInput");
+  const feedback=document.getElementById("answerFeedback");
+  const val=norm(input.value);
+  const ok=q.answers.some(a=>norm(a)===val);
+  if(ok){
+    feedback.style.color="#17713b";
+    feedback.textContent="정답입니다.";
+    setTimeout(()=>openQuestion(currentQuestion+1,false),350);
+  }else{
+    feedback.style.color="#b2152b";
+    feedback.textContent="다시 입력하세요";
+    input.select();
+  }
+}
+
+
+function playEndingAnimation(){
+  const target=document.getElementById("endingText");
+  const card=document.getElementById("endingCard");
+  if(!target) return;
+
+  // 원본 HTML을 보관하고 매번 다시 글자 단위로 쪼갠다.
+  if(!target.dataset.original) target.dataset.original=target.innerHTML;
+  target.innerHTML=target.dataset.original;
+
+  const walker=document.createTreeWalker(target,NodeFilter.SHOW_TEXT);
+  const nodes=[];
+  while(walker.nextNode()) nodes.push(walker.currentNode);
+
+  let index=0;
+  nodes.forEach(node=>{
+    const frag=document.createDocumentFragment();
+    [...node.nodeValue].forEach(ch=>{
+      if(ch==="\\n"){
+        frag.appendChild(document.createTextNode(ch));
+        return;
+      }
+      if(ch===" "){
+        frag.appendChild(document.createTextNode(" "));
+        return;
+      }
+      const span=document.createElement("span");
+      span.className="swirl-letter";
+      span.textContent=ch;
+      const angle=(index*47)%360;
+      const radius=170+(index%7)*24;
+      const sx=Math.cos(angle*Math.PI/180)*radius;
+      const sy=Math.sin(angle*Math.PI/180)*radius;
+      span.style.setProperty("--sx",sx+"px");
+      span.style.setProperty("--sy",sy+"px");
+      span.style.setProperty("--sr",((index*91)%720-360)+"deg");
+      span.style.setProperty("--delay",(index*0.018)+"s");
+      frag.appendChild(span);
+      index++;
+    });
+    node.parentNode.replaceChild(frag,node);
+  });
+
+  card.classList.remove("ending-shake");
+  void card.offsetWidth;
+  card.classList.add("ending-shake");
+}
+
+/* Intro input routing */
+const introInput=document.getElementById("introInput");
+const introFeedback=document.getElementById("introFeedback");
+function submitIntro(){
+  const v=norm(introInput.value);
+  if(v===norm("시작")){
+    introFeedback.textContent="";
+    openQuestion(1,false);
+  }else if(v===norm("비타민D")){
+    introFeedback.textContent="";
+    show(cafeScreen);
+  }else if(v===norm("호프는재밌는영화가아니다")){
+    introFeedback.textContent="";
+    show(endingScreen);
+    requestAnimationFrame(playEndingAnimation);
+  }else{
+    introFeedback.textContent="다시 입력하세요";
+    introInput.select();
+  }
+}
+document.getElementById("introSubmit").addEventListener("click",submitIntro);
+introInput.addEventListener("keydown",e=>{if(e.key==="Enter")submitIntro();});
+
+/* Invitation typewriter and fleeing No button */
+const inviteText=document.getElementById("inviteText");
+const inviteButtons=document.getElementById("inviteButtons");
+const playTime=document.getElementById("playTime");
+const yesBtn=document.getElementById("yesBtn");
+const noBtn=document.getElementById("noBtn");
+const invitation="나랑 놀래?";
+let typeIndex=0, noActive=false;
+function typeInvitation(){
+  if(typeIndex<invitation.length){
+    inviteText.textContent+=invitation[typeIndex++];
+    setTimeout(typeInvitation,85);
+  }else{
+    inviteButtons.classList.add("show");
+    playTime.classList.add("show");
+    requestAnimationFrame(()=>{
+      placeNo();
+      noBtn.style.opacity=1;
+      noActive=true;
+    });
+  }
+}
+yesBtn.addEventListener("click",()=>{
+  noActive=false;
+  noBtn.style.display="none";
+  goIntro();
+});
+
+let mx=-9999,my=-9999,nx=0,ny=0,vx=0,vy=0;
+const pad=22,avoid=190,panic=105,maxSpeed=22,friction=.86;
+function placeNo(){
+  const r=yesBtn.getBoundingClientRect();
+  nx=r.right+28; ny=r.top;
+  constrainNo(); drawNo();
+}
+function constrainNo(){
+  const w=noBtn.offsetWidth,h=noBtn.offsetHeight;
+  nx=Math.max(pad,Math.min(nx,innerWidth-w-pad));
+  ny=Math.max(pad,Math.min(ny,innerHeight-h-pad));
+}
+function drawNo(){ noBtn.style.left=nx+"px"; noBtn.style.top=ny+"px"; }
+function animateNo(){
+  if(noActive){
+    const w=noBtn.offsetWidth,h=noBtn.offsetHeight,cx=nx+w/2,cy=ny+h/2;
+    const dx=cx-mx,dy=cy-my,d=Math.hypot(dx,dy);
+    if(d<avoid){
+      const safe=Math.max(d,1),strength=(avoid-d)/avoid;
+      let force=2.2+strength*7.5;
+      if(d<panic) force+=12;
+      vx+=(dx/safe)*force; vy+=(dy/safe)*force;
+    }
+    const edge=95,right=nx+w,bottom=ny+h;
+    if(nx<edge)vx+=(edge-nx)*.035;
+    if(right>innerWidth-edge)vx-=(right-(innerWidth-edge))*.035;
+    if(ny<edge)vy+=(edge-ny)*.035;
+    if(bottom>innerHeight-edge)vy-=(bottom-(innerHeight-edge))*.035;
+    const speed=Math.hypot(vx,vy);
+    if(speed>maxSpeed){vx=vx/speed*maxSpeed;vy=vy/speed*maxSpeed;}
+    vx*=friction;vy*=friction;nx+=vx;ny+=vy;
+    if(nx<pad){nx=pad;vx=Math.abs(vx)*.7;}
+    if(nx+w>innerWidth-pad){nx=innerWidth-w-pad;vx=-Math.abs(vx)*.7;}
+    if(ny<pad){ny=pad;vy=Math.abs(vy)*.7;}
+    if(ny+h>innerHeight-pad){ny=innerHeight-h-pad;vy=-Math.abs(vy)*.7;}
+    drawNo();
+  }
+  requestAnimationFrame(animateNo);
+}
+document.addEventListener("mousemove",e=>{mx=e.clientX;my=e.clientY;});
+window.addEventListener("resize",()=>{if(noActive){constrainNo();drawNo();}});
+typeInvitation();
+animateNo();
+</script>
+</body>
+</html>
